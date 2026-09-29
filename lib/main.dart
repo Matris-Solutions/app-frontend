@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
+import 'liturgical_theme.dart';
 import 'screens/home_screen.dart';
+import 'screens/parish_list_screen.dart';
 import 'screens/map_screen.dart';
 
 void main() {
-  runApp(const ParishApp());
+  runApp(const ParishHubApp());
 }
 
-class ParishApp extends StatelessWidget {
-  const ParishApp({super.key});
+class ParishHubApp extends StatelessWidget {
+  const ParishHubApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Parish Hub',
+      theme: ParishTheme.getTheme(DateTime.now()),
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.grey[100],
-      ),
       home: const MainNavigator(),
     );
   }
@@ -32,10 +31,12 @@ class MainNavigator extends StatefulWidget {
 
 class _MainNavigatorState extends State {
   int _currentIndex = 0;
+
   final List _screens = [
-    const HomeScreen(),
+    const DashboardScreen(),
+    const ParishListScreen(),
     const MapScreen(),
-    const Center(child: Text('Leader Dashboard (Coming Soon)', style: TextStyle(fontSize: 18))),
+    const Center(child: Text('Profile Screen Pending')),
   ];
 
   @override
@@ -44,11 +45,15 @@ class _MainNavigatorState extends State {
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
+        selectedItemColor: Theme.of(context).primaryColor,
+        unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
         onTap: (index) => setState(() => _currentIndex = index),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Parishes'),
-          BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings), label: 'Leader'),
+          BottomNavigationBarItem(icon: Icon(Icons.church), label: 'Parishes'),
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
     );
