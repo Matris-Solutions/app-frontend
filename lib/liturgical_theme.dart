@@ -1,4 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+class AppColors {
+  static const Color green = Color(0xFF4A7C59);
+  static const Color greenDark = Color(0xFF28553A);
+  static const Color greenPale = Color(0xFFEAF1EB);
+  static const Color gold = Color(0xFFC4A46B);
+  static const Color goldPale = Color(0xFFF5EFE3);
+  static const Color parchment = Color(0xFFFDFBF7);
+  static const Color white = Color(0xFFFFFFFF);
+  static const Color ink = Color(0xFF1E2B23);
+  static const Color muted = Color(0xFF68756D);
+  static const Color line = Color(0xFFE8E7E1);
+  static const Color background = Color(0xFFE6E8E3);
+}
 
 enum LiturgicalSeason { advent, christmas, ordinary, lent, triduum, easter, pentecost }
 
@@ -44,42 +59,55 @@ class LiturgicalCalendar {
 
 class ParishTheme {
   static ThemeData getTheme(DateTime date) {
-    LiturgicalSeason season = LiturgicalCalendar.getSeason(date);
+    // LiturgicalSeason season = LiturgicalCalendar.getSeason(date);
+    // Keep it simple for the UI conversion: Use the green theme
+    Color primaryColor = AppColors.green;
     
-    Color primaryColor = const Color(0xFF4A7C59); 
-    Color secondaryColor = const Color(0xFFC4A46B); 
-    
-    switch (season) {
-      case LiturgicalSeason.advent:
-      case LiturgicalSeason.lent:
-        primaryColor = const Color(0xFF5E2D79); 
-        break;
-      case LiturgicalSeason.christmas:
-      case LiturgicalSeason.easter:
-        primaryColor = const Color(0xFFD4AF37); 
-        secondaryColor = const Color(0xFFF9F6EE);
-        break;
-      case LiturgicalSeason.triduum:
-      case LiturgicalSeason.pentecost:
-        primaryColor = const Color(0xFFB31B1B); 
-        break;
-      case LiturgicalSeason.ordinary:
-        primaryColor = const Color(0xFFC4A46B); 
-        break;
-    }
+    final TextTheme baseTextTheme = GoogleFonts.dmSansTextTheme();
 
     return ThemeData(
       primaryColor: primaryColor,
-      scaffoldBackgroundColor: const Color(0xFFFDFBF7),
-      appBarTheme: AppBarTheme(
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
+      scaffoldBackgroundColor: AppColors.parchment,
+      textTheme: baseTextTheme.copyWith(
+        displayLarge: GoogleFonts.newsreader(
+          color: AppColors.ink,
+          fontSize: 35,
+          height: 1.05,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.025 * 35,
+        ),
+        displayMedium: GoogleFonts.newsreader(
+          color: AppColors.ink,
+          fontSize: 32,
+          fontWeight: FontWeight.w600,
+        ),
+        titleLarge: GoogleFonts.newsreader(
+          color: AppColors.ink,
+          fontSize: 25,
+          fontWeight: FontWeight.w600,
+        ),
+        titleMedium: GoogleFonts.newsreader(
+          color: AppColors.ink,
+          fontSize: 21,
+          height: 1.15,
+          fontWeight: FontWeight.w600,
+        ),
+        bodyLarge: baseTextTheme.bodyLarge?.copyWith(
+          color: AppColors.ink,
+        ),
+        bodyMedium: baseTextTheme.bodyMedium?.copyWith(
+          color: AppColors.ink,
+        ),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        foregroundColor: AppColors.ink,
         elevation: 0,
       ),
       colorScheme: ColorScheme.light(
         primary: primaryColor,
-        secondary: secondaryColor,
-        surface: Colors.white,
+        secondary: AppColors.gold,
+        surface: AppColors.white,
       ),
       useMaterial3: true,
     );

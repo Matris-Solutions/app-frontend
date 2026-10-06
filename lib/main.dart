@@ -1,8 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'liturgical_theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/parish_list_screen.dart';
 import 'screens/map_screen.dart';
+import 'screens/profile_screen.dart';
 
 void main() {
   runApp(const ParishHubApp());
@@ -26,34 +28,120 @@ class MainNavigator extends StatefulWidget {
   const MainNavigator({super.key});
 
   @override
-  State createState() => _MainNavigatorState();
+  State<MainNavigator> createState() => _MainNavigatorState();
 }
 
-class _MainNavigatorState extends State {
+class _MainNavigatorState extends State<MainNavigator> {
   int _currentIndex = 0;
 
-  final List _screens = [
-    const DashboardScreen(),
-    const ParishListScreen(),
+  final List<Widget> _screens = [
+    const HomeScreen(),
+    const DirectoryScreen(),
     const MapScreen(),
-    const Center(child: Text('Profile Screen Pending')),
+    const MemberProfileScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        selectedItemColor: Theme.of(context).primaryColor,
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.church), label: 'Parishes'),
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+      backgroundColor: AppColors.background,
+      body: Stack(
+        children: [
+          // Background Gradient matching App Shell
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment(-0.6, -0.8), // 20% 10%
+                  radius: 0.6, // roughly 30%
+                  colors: [
+                    Color(0x21C4A46B), // rgba(196, 164, 107, 0.13)
+                    AppColors.parchment,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          // Current Screen
+          SafeArea(
+            bottom: false,
+            child: _screens[_currentIndex],
+          ),
+          
+          // Custom Bottom Navigation Bar
+          Positioned(
+            left: 14,
+            right: 14,
+            bottom: 12 + MediaQuery.of(context).padding.bottom,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(23),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                child: Container(
+                  height: 74,
+                  padding: const EdgeInsets.only(top: 8, bottom: 7, left: 8, right: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.96),
+                    borderRadius: BorderRadius.circular(23),
+                    border: Border.all(color: const Color(0x1728553A)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x291B3423),
+                        blurRadius: 34,
+                        offset: Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildNavItem(0, 'Home', Icons.home_outlined, Icons.home),
+                      _buildNavItem(1, 'Parishes', Icons.church_outlined, Icons.church),
+                      _buildNavItem(2, 'Map', Icons.map_outlined, Icons.map),
+                      _buildNavItem(3, 'Profile', Icons.person_outline, Icons.person),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, String label, IconData iconData, IconData activeIconData) {
+    final bool isActive = _currentIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _currentIndex = index),
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 35,
+            height: 30,
+            decoration: BoxDecoration(
+              color: isActive ? AppColors.greenPale : Colors.transparent,
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Icon(
+              isActive ? activeIconData : iconData,
+              color: isActive ? AppColors.greenDark : const Color(0xFF8B958E),
+              size: 21,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: isActive ? AppColors.greenDark : const Color(0xFF8B958E),
+            ),
+          ),
         ],
       ),
     );

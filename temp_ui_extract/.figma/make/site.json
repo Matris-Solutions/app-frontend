@@ -1,0 +1,10 @@
+{
+  "description": "Connect with local Catholic communities through daily readings, parish directories, event updates, and interactive maps for easy church discovery.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
