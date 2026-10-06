@@ -32,11 +32,12 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
-  google_maps_flutter: ^2.18.2
   intl: ^0.20.3
   google_fonts: ^6.2.1
   geolocator: ^13.0.1
   http: ^1.6.0
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
 
 dev_dependencies:
   flutter_test:

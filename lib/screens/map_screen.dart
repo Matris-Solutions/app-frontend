@@ -1,7 +1,7 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import '../liturgical_theme.dart';
@@ -15,16 +15,11 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  final Completer<GoogleMapController> _controller = Completer<GoogleMapController>();
-  Position? _currentPosition;
-  Set<Marker> _markers = {};
+  final MapController _mapController = MapController();
+  LatLng? _currentPosition;
+  List<Marker> _markers = [];
   Map<String, dynamic>? _selectedParish;
-  
-  // Default fallback location
-  static const CameraPosition _initialPosition = CameraPosition(
-    target: LatLng(40.7128, -74.0060),
-    zoom: 13.0,
-  );
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -33,44 +28,70 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _determinePosition() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+    try {
+      LocationPermission permission;
 
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return;
+      // 1. Check and Request Permissions FIRST
+      permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _setFallbackPosition('Location permissions were denied.');
+          return;
+        }
+      }
+      
+      if (permission == LocationPermission.deniedForever) {
+        _setFallbackPosition('Location permissions are permanently denied in settings.');
+        return;
+      } 
 
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return;
+      // 2. Check if Location Services (GPS) are enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _setFallbackPosition('Location services (GPS) are turned off. Please enable them in your device settings.');
+        return;
+      }
+
+      // 3. Get the actual position
+      Position pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 15), // Don't hang forever
+      );
+      _currentPosition = LatLng(pos.latitude, pos.longitude);
+      await _fetchLiveParishes(_currentPosition!);
+    } catch (e) {
+      debugPrint('Error in _determinePosition: $e');
+      _setFallbackPosition('Could not fetch GPS location: $e');
     }
-    
-    if (permission == LocationPermission.deniedForever) return;
+  }
 
-    _currentPosition = await Geolocator.getCurrentPosition();
-    
-    final GoogleMapController controller = await _controller.future;
-    controller.animateCamera(CameraUpdate.newCameraPosition(
-      CameraPosition(
-        target: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-        zoom: 13.5,
-      ),
-    ));
-    
-    _fetchLiveParishes(_currentPosition!);
+  void _setFallbackPosition([String? reason]) async {
+    if (reason != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(reason),
+          backgroundColor: Colors.red.shade800,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+    // Default fallback to Glenvista, Johannesburg
+    _currentPosition = const LatLng(-26.276, 28.046);
+    await _fetchLiveParishes(_currentPosition!);
   }
   
-  /// Fetches real Catholic churches using OpenStreetMap's Overpass API
-  /// This is used because it's completely free and doesn't require an API Key!
-  Future<void> _fetchLiveParishes(Position position) async {
+  /// Fetches real Catholic churches using Overpass API
+  Future<void> _fetchLiveParishes(LatLng position) async {
     const String overpassUrl = 'https://overpass-api.de/api/interpreter';
     
-    // Search for Catholic places of worship within roughly a 10-mile radius (16000 meters)
+    // QL Query for Catholic places of worship within a 5km radius
     final String query = '''
       [out:json];
       (
-        node["amenity"="place_of_worship"]["denomination"="catholic"](around:16000,${position.latitude},${position.longitude});
-        way["amenity"="place_of_worship"]["denomination"="catholic"](around:16000,${position.latitude},${position.longitude});
+        node(around:5000, ${position.latitude}, ${position.longitude})["amenity"="place_of_worship"]["denomination"="catholic"];
+        way(around:5000, ${position.latitude}, ${position.longitude})["amenity"="place_of_worship"]["denomination"="catholic"];
       );
       out center;
     ''';
@@ -85,7 +106,7 @@ class _MapScreenState extends State<MapScreen> {
         final data = json.decode(response.body);
         final elements = data['elements'] as List;
         
-        Set<Marker> newMarkers = {};
+        List<Marker> newMarkers = [];
         List<Map<String, dynamic>> parishesList = [];
 
         for (var el in elements) {
@@ -95,7 +116,7 @@ class _MapScreenState extends State<MapScreen> {
           
           final String name = tags['name'] ?? 'Catholic Church';
           
-          // Build a readable address from OSM tags
+          // Build a readable address
           String address = '';
           if (tags['addr:housenumber'] != null && tags['addr:street'] != null) {
             address = '${tags['addr:housenumber']} ${tags['addr:street']}';
@@ -108,15 +129,19 @@ class _MapScreenState extends State<MapScreen> {
             address = 'Address not available';
           }
 
-          final double distanceMeters = Geolocator.distanceBetween(position.latitude, position.longitude, lat, lon);
-          final String distanceMiles = (distanceMeters / 1609.34).toStringAsFixed(1);
+          final double distanceMeters = const Distance().as(
+            LengthUnit.Meter, 
+            LatLng(position.latitude, position.longitude), 
+            LatLng(lat, lon)
+          );
+          final String distanceKm = (distanceMeters / 1000).toStringAsFixed(1);
           final String id = el['id'].toString();
 
           final parishData = {
             'id': id,
             'name': name,
             'address': address,
-            'distance': '$distanceMiles miles away',
+            'distance': '$distanceKm km away',
             'distanceMeters': distanceMeters,
             'lat': lat,
             'lon': lon,
@@ -126,73 +151,150 @@ class _MapScreenState extends State<MapScreen> {
 
           newMarkers.add(
             Marker(
-              markerId: MarkerId(id),
-              position: LatLng(lat, lon),
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-              onTap: () async {
-                setState(() {
-                  _selectedParish = parishData;
-                });
-                
-                final GoogleMapController controller = await _controller.future;
-                controller.animateCamera(CameraUpdate.newLatLng(LatLng(lat, lon)));
-              },
+              point: LatLng(lat, lon),
+              width: 50,
+              height: 60,
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedParish = parishData;
+                  });
+                  _mapController.move(LatLng(lat, lon), 15.0);
+                },
+                child: _buildPin(true, Icons.church),
+              ),
             ),
           );
         }
 
-        // Sort to find the closest parish
+        // Sort by distance
         parishesList.sort((a, b) => (a['distanceMeters'] as double).compareTo(b['distanceMeters'] as double));
 
         setState(() {
           _markers = newMarkers;
-          if (parishesList.isNotEmpty && _selectedParish == null) {
-            _selectedParish = parishesList.first; // Default to nearest
+          if (parishesList.isNotEmpty) {
+            _selectedParish = parishesList.first;
           }
+          _isLoading = false;
         });
+      } else {
+        setState(() => _isLoading = false);
       }
     } catch (e) {
       debugPrint('Error fetching parishes: $e');
+      setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _goToCurrentLocation() async {
-    if (_currentPosition == null) {
-      await _determinePosition();
-    } else {
-      final GoogleMapController controller = await _controller.future;
-      controller.animateCamera(CameraUpdate.newCameraPosition(
-        CameraPosition(
-          target: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-          zoom: 14.5,
+  void _goToCurrentLocation() {
+    if (_currentPosition != null) {
+      _mapController.move(_currentPosition!, 14.5);
+    }
+  }
+
+  void _zoom(double change) {
+    _mapController.move(_mapController.camera.center, _mapController.camera.zoom + change);
+  }
+
+  Widget _buildPin(bool isSelected, IconData icon) {
+    return Transform.translate(
+      offset: const Offset(0, -20), // Lift the pin so bottom points to exact coordinate
+      child: Transform.rotate(
+        angle: -45 * 3.14159 / 180,
+        child: Container(
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.green : AppColors.gold,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(50),
+              topRight: Radius.circular(50),
+              bottomLeft: Radius.circular(50),
+              bottomRight: Radius.circular(8),
+            ),
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: const [BoxShadow(color: Color(0x38213627), blurRadius: 10, offset: Offset(5, 5))],
+          ),
+          child: Transform.rotate(
+            angle: 45 * 3.14159 / 180,
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
         ),
-      ));
-    }
+      ),
+    );
   }
 
-  Future<void> _zoom(double change) async {
-    final GoogleMapController controller = await _controller.future;
-    controller.animateCamera(CameraUpdate.zoomBy(change));
+  Widget _buildMapControlButton(IconData icon) {
+    return SizedBox(
+      width: 40,
+      height: 38,
+      child: Icon(icon, size: 20, color: AppColors.ink),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: AppColors.parchment,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: AppColors.green),
+              SizedBox(height: 16),
+              Text(
+                'Locating nearby parishes...',
+                style: TextStyle(
+                  color: AppColors.greenDark,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFE7E5DD),
       body: Stack(
         children: [
-          // The Google Map
+          // The Free OpenStreetMap
           Positioned.fill(
-            child: GoogleMap(
-              mapType: MapType.normal,
-              initialCameraPosition: _initialPosition,
-              myLocationEnabled: true,
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled: false,
-              markers: _markers,
-              onMapCreated: (GoogleMapController controller) {
-                _controller.complete(controller);
-              },
+            child: FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: _currentPosition ?? const LatLng(-26.276, 28.046),
+                initialZoom: 13.5,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.parish_hub',
+                ),
+                MarkerLayer(
+                  markers: [
+                    // Plot all the Catholic Church markers
+                    ..._markers,
+                    
+                    // Plot the User's Current Location Dot
+                    if (_currentPosition != null)
+                      Marker(
+                        point: _currentPosition!,
+                        width: 24,
+                        height: 24,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.blue,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 3),
+                            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
             ),
           ),
 
@@ -316,35 +418,36 @@ class _MapScreenState extends State<MapScreen> {
                                 borderRadius: BorderRadius.circular(99),
                               ),
                               child: Text(
-                                _selectedParish != null ? 'OPEN TODAY' : 'SEARCHING...',
+                                _selectedParish != null ? 'OPEN TODAY' : 'NO PARISHES FOUND',
                                 style: const TextStyle(color: AppColors.greenDark, fontSize: 8, fontWeight: FontWeight.w700, letterSpacing: 0.4),
                               ),
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              _selectedParish?['name'] ?? 'Finding nearby parishes...',
+                              _selectedParish?['name'] ?? 'Try adjusting map area',
                               style: const TextStyle(fontFamily: 'Newsreader', fontSize: 19, fontWeight: FontWeight.w600, color: AppColors.ink),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              _selectedParish != null ? '${_selectedParish!['distance']} · ${_selectedParish!['address']}' : 'Please wait...',
+                              _selectedParish != null ? '${_selectedParish!['distance']} · ${_selectedParish!['address']}' : '',
                               style: const TextStyle(color: AppColors.muted, fontSize: 10),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 9),
-                            Row(
-                              children: [
-                                const Icon(Icons.access_time, size: 14, color: AppColors.green),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _selectedParish != null ? 'Next Mass at 5:30 PM' : '',
-                                  style: const TextStyle(color: AppColors.green, fontSize: 9, fontWeight: FontWeight.w700),
-                                ),
-                              ],
-                            ),
+                            if (_selectedParish != null)
+                              Row(
+                                children: const [
+                                  Icon(Icons.access_time, size: 14, color: AppColors.green),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Next Mass at 5:30 PM',
+                                    style: TextStyle(color: AppColors.green, fontSize: 9, fontWeight: FontWeight.w700),
+                                  ),
+                                ],
+                              ),
                           ],
                         ),
                       ),
@@ -376,14 +479,6 @@ class _MapScreenState extends State<MapScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildMapControlButton(IconData icon) {
-    return SizedBox(
-      width: 40,
-      height: 38,
-      child: Icon(icon, size: 20, color: AppColors.ink),
     );
   }
 }

@@ -3,16 +3,12 @@
     <!-- Permissions for Geolocator -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:label="parish_hub"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-
-        <!-- Google Maps API Key -->
-        <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyD5rfMD2GcsE9rPqbqveLBzk3X8L5Tas6A" />
 
         <activity
             android:name=".MainActivity"
