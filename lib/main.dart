@@ -6,6 +6,8 @@ import 'screens/parish_list_screen.dart';
 import 'screens/map_screen.dart';
 import 'screens/profile_screen.dart';
 
+import 'services/liturgical_service.dart';
+
 void main() {
   runApp(const ParishHubApp());
 }
@@ -15,11 +17,16 @@ class ParishHubApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Parish Hub',
-      theme: ParishTheme.getTheme(DateTime.now()),
-      debugShowCheckedModeBanner: false,
-      home: const MainNavigator(),
+    return ListenableBuilder(
+      listenable: LiturgicalService(),
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'Parish Hub',
+          theme: ParishTheme.getTheme(LiturgicalService().primaryColor),
+          debugShowCheckedModeBanner: false,
+          home: const MainNavigator(),
+        );
+      },
     );
   }
 }
@@ -43,19 +50,22 @@ class _MainNavigatorState extends State<MainNavigator> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Stack(
+    return ListenableBuilder(
+      listenable: LiturgicalService(),
+      builder: (context, _) {
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: Stack(
         children: [
           // Background Gradient matching App Shell
           Positioned.fill(
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: RadialGradient(
-                  center: Alignment(-0.6, -0.8), // 20% 10%
+                  center: const Alignment(-0.6, -0.8), // 20% 10%
                   radius: 0.6, // roughly 30%
                   colors: [
-                    Color(0x21C4A46B), // rgba(196, 164, 107, 0.13)
+                    LiturgicalService().primaryColor.withValues(alpha: 0.13),
                     AppColors.parchment,
                   ],
                 ),
@@ -82,14 +92,14 @@ class _MainNavigatorState extends State<MainNavigator> {
                   height: 74,
                   padding: const EdgeInsets.only(top: 8, bottom: 7, left: 8, right: 8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.96),
+                    color: Colors.white.withValues(alpha: 0.96),
                     borderRadius: BorderRadius.circular(23),
-                    border: Border.all(color: const Color(0x1728553A)),
-                    boxShadow: const [
+                    border: Border.all(color: LiturgicalService().darkColor.withValues(alpha: 0.09)),
+                    boxShadow: [
                       BoxShadow(
-                        color: Color(0x291B3423),
+                        color: LiturgicalService().darkColor.withValues(alpha: 0.16),
                         blurRadius: 34,
-                        offset: Offset(0, 10),
+                        offset: const Offset(0, 10),
                       ),
                     ],
                   ),
@@ -110,10 +120,13 @@ class _MainNavigatorState extends State<MainNavigator> {
         ],
       ),
     );
+      },
+    );
   }
 
   Widget _buildNavItem(int index, String label, IconData iconData, IconData activeIconData) {
     final bool isActive = _currentIndex == index;
+    final litService = LiturgicalService();
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
       behavior: HitTestBehavior.opaque,
@@ -124,12 +137,12 @@ class _MainNavigatorState extends State<MainNavigator> {
             width: 35,
             height: 30,
             decoration: BoxDecoration(
-              color: isActive ? AppColors.greenPale : Colors.transparent,
+              color: isActive ? litService.paleColor : Colors.transparent,
               borderRadius: BorderRadius.circular(13),
             ),
             child: Icon(
               isActive ? activeIconData : iconData,
-              color: isActive ? AppColors.greenDark : const Color(0xFF8B958E),
+              color: isActive ? litService.darkColor : const Color(0xFF8B958E),
               size: 21,
             ),
           ),
@@ -139,7 +152,7 @@ class _MainNavigatorState extends State<MainNavigator> {
             style: TextStyle(
               fontSize: 9,
               fontWeight: FontWeight.w600,
-              color: isActive ? AppColors.greenDark : const Color(0xFF8B958E),
+              color: isActive ? litService.darkColor : const Color(0xFF8B958E),
             ),
           ),
         ],

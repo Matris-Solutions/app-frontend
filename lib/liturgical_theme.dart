@@ -13,6 +13,19 @@ class AppColors {
   static const Color muted = Color(0xFF68756D);
   static const Color line = Color(0xFFE8E7E1);
   static const Color background = Color(0xFFE6E8E3);
+
+  // Liturgical Colors
+  static const Color purple = Color(0xFF5E3A71);
+  static const Color purpleDark = Color(0xFF3B224A);
+  static const Color purplePale = Color(0xFFEFE8F2);
+
+  static const Color red = Color(0xFF9E2A2B);
+  static const Color redDark = Color(0xFF5A1414);
+  static const Color redPale = Color(0xFFF5E1E1);
+
+  static const Color rose = Color(0xFFD68A9A);
+  static const Color roseDark = Color(0xFF8F4C5A);
+  static const Color rosePale = Color(0xFFF9E8EC);
 }
 
 enum LiturgicalSeason { advent, christmas, ordinary, lent, triduum, easter, pentecost }
@@ -58,11 +71,7 @@ class LiturgicalCalendar {
 }
 
 class ParishTheme {
-  static ThemeData getTheme(DateTime date) {
-    // LiturgicalSeason season = LiturgicalCalendar.getSeason(date);
-    // Keep it simple for the UI conversion: Use the green theme
-    Color primaryColor = AppColors.green;
-    
+  static ThemeData getTheme(Color primaryColor) {
     final TextTheme baseTextTheme = GoogleFonts.dmSansTextTheme();
 
     return ThemeData(

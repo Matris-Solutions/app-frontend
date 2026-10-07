@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -42,22 +43,28 @@ class _MapScreenState extends State<MapScreen> {
       }
       
       if (permission == LocationPermission.deniedForever) {
-        _setFallbackPosition('Location permissions are permanently denied in settings.');
+        _setFallbackPosition('Location permissions are permanently denied.');
         return;
       } 
 
       // 2. Check if Location Services (GPS) are enabled
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _setFallbackPosition('Location services (GPS) are turned off. Please enable them in your device settings.');
+        _setFallbackPosition('Location services (GPS) are turned off.');
         return;
       }
 
       // 3. Get the actual position
-      Position pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 15), // Don't hang forever
-      );
+      // Using getLastKnownPosition first is a lifesaver for Android Emulators which often hang on getCurrentPosition
+      Position? pos = await Geolocator.getLastKnownPosition();
+      
+      if (pos == null) {
+        pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium, // Medium is much safer/faster for Emulators
+          timeLimit: const Duration(seconds: 8), 
+        );
+      }
+      
       _currentPosition = LatLng(pos.latitude, pos.longitude);
       await _fetchLiveParishes(_currentPosition!);
     } catch (e) {
@@ -72,7 +79,7 @@ class _MapScreenState extends State<MapScreen> {
         SnackBar(
           content: Text(reason),
           backgroundColor: Colors.red.shade800,
-          duration: const Duration(seconds: 5),
+          duration: const Duration(seconds: 4),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -100,86 +107,89 @@ class _MapScreenState extends State<MapScreen> {
       final response = await http.post(
         Uri.parse(overpassUrl),
         body: {'data': query},
-      );
+      ).timeout(const Duration(seconds: 10)); // Prevent infinite hanging
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final elements = data['elements'] as List;
-        
-        List<Marker> newMarkers = [];
-        List<Map<String, dynamic>> parishesList = [];
-
-        for (var el in elements) {
-          final double lat = el['type'] == 'node' ? el['lat'] : el['center']['lat'];
-          final double lon = el['type'] == 'node' ? el['lon'] : el['center']['lon'];
-          final tags = el['tags'] ?? {};
+        if (data != null && data['elements'] != null) {
+          final elements = data['elements'] as List;
           
-          final String name = tags['name'] ?? 'Catholic Church';
-          
-          // Build a readable address
-          String address = '';
-          if (tags['addr:housenumber'] != null && tags['addr:street'] != null) {
-            address = '${tags['addr:housenumber']} ${tags['addr:street']}';
-            if (tags['addr:city'] != null) address += ', ${tags['addr:city']}';
-          } else if (tags['addr:street'] != null) {
-            address = tags['addr:street'];
-          } else if (tags['addr:city'] != null) {
-            address = tags['addr:city'];
-          } else {
-            address = 'Address not available';
-          }
+          List<Marker> newMarkers = [];
+          List<Map<String, dynamic>> parishesList = [];
 
-          final double distanceMeters = const Distance().as(
-            LengthUnit.Meter, 
-            LatLng(position.latitude, position.longitude), 
-            LatLng(lat, lon)
-          );
-          final String distanceKm = (distanceMeters / 1000).toStringAsFixed(1);
-          final String id = el['id'].toString();
+          for (var el in elements) {
+            final double lat = el['type'] == 'node' ? el['lat'] : el['center']['lat'];
+            final double lon = el['type'] == 'node' ? el['lon'] : el['center']['lon'];
+            final tags = el['tags'] ?? {};
+            
+            final String name = tags['name'] ?? 'Catholic Church';
+            
+            // Build a readable address
+            String address = '';
+            if (tags['addr:housenumber'] != null && tags['addr:street'] != null) {
+              address = '${tags['addr:housenumber']} ${tags['addr:street']}';
+              if (tags['addr:city'] != null) address += ', ${tags['addr:city']}';
+            } else if (tags['addr:street'] != null) {
+              address = tags['addr:street'];
+            } else if (tags['addr:city'] != null) {
+              address = tags['addr:city'];
+            } else {
+              address = 'Address not available';
+            }
 
-          final parishData = {
-            'id': id,
-            'name': name,
-            'address': address,
-            'distance': '$distanceKm km away',
-            'distanceMeters': distanceMeters,
-            'lat': lat,
-            'lon': lon,
-          };
-          
-          parishesList.add(parishData);
+            // Using the robust distance method universally supported across latlong2 versions
+            final double distanceMeters = const Distance().distance(
+              LatLng(position.latitude, position.longitude), 
+              LatLng(lat, lon)
+            );
+            
+            final String distanceKm = (distanceMeters / 1000).toStringAsFixed(1);
+            final String id = el['id'].toString();
 
-          newMarkers.add(
-            Marker(
-              point: LatLng(lat, lon),
-              width: 50,
-              height: 60,
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedParish = parishData;
-                  });
-                  _mapController.move(LatLng(lat, lon), 15.0);
-                },
-                child: _buildPin(true, Icons.church),
+            final parishData = {
+              'id': id,
+              'name': name,
+              'address': address,
+              'distance': '$distanceKm km away',
+              'distanceMeters': distanceMeters,
+              'lat': lat,
+              'lon': lon,
+            };
+            
+            parishesList.add(parishData);
+
+            newMarkers.add(
+              Marker(
+                point: LatLng(lat, lon),
+                width: 50,
+                height: 60,
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedParish = parishData;
+                    });
+                    _mapController.move(LatLng(lat, lon), 15.0);
+                  },
+                  child: _buildPin(true, Icons.church),
+                ),
               ),
-            ),
-          );
-        }
-
-        // Sort by distance
-        parishesList.sort((a, b) => (a['distanceMeters'] as double).compareTo(b['distanceMeters'] as double));
-
-        setState(() {
-          _markers = newMarkers;
-          if (parishesList.isNotEmpty) {
-            _selectedParish = parishesList.first;
+            );
           }
-          _isLoading = false;
-        });
-      } else {
-        setState(() => _isLoading = false);
+
+          // Sort by distance
+          parishesList.sort((a, b) => (a['distanceMeters'] as double).compareTo(b['distanceMeters'] as double));
+
+          setState(() {
+            _markers = newMarkers;
+            if (parishesList.isNotEmpty) {
+              _selectedParish = parishesList.first;
+            }
+            _isLoading = false;
+          });
+          return;
+        }
       }
+      setState(() => _isLoading = false);
     } catch (e) {
       debugPrint('Error fetching parishes: $e');
       setState(() => _isLoading = false);
@@ -198,7 +208,7 @@ class _MapScreenState extends State<MapScreen> {
 
   Widget _buildPin(bool isSelected, IconData icon) {
     return Transform.translate(
-      offset: const Offset(0, -20), // Lift the pin so bottom points to exact coordinate
+      offset: const Offset(0, -20),
       child: Transform.rotate(
         angle: -45 * 3.14159 / 180,
         child: Container(
