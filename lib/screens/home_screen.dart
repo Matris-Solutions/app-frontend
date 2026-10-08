@@ -22,7 +22,7 @@ class HomeScreen extends StatelessWidget {
                 CircularProgressIndicator(color: litService.primaryColor),
                 const SizedBox(height: 16),
                 const Text(
-                  'Preparing your daily liturgy...',
+                  'Loading your dashboard...',
                   style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w500),
                 ),
               ],
@@ -113,7 +113,7 @@ class HomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 22),
 
-            // Readings Card (Dynamic Colors & Data)
+            // Pastor's Message Card
             Container(
               decoration: BoxDecoration(
                 color: AppColors.white,
@@ -156,7 +156,7 @@ class HomeScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'DAILY READINGS',
+                                  'CHURCH LEADERS',
                                   style: TextStyle(
                                     color: litService.primaryColor,
                                     fontSize: 10,
@@ -166,7 +166,7 @@ class HomeScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
-                                  'Liturgy of the Word',
+                                  'A Message from the Pastor',
                                   style: Theme.of(context).textTheme.titleMedium,
                                 ),
                               ],
@@ -178,40 +178,27 @@ class HomeScreen extends StatelessWidget {
                                 color: litService.paleColor,
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(Icons.add, color: litService.primaryColor, size: 16), // Cross icon
+                              child: Icon(Icons.chat_bubble_outline, color: litService.primaryColor, size: 16),
                             ),
                           ],
                         ),
                         const SizedBox(height: 14),
                         
-                        // Render dynamic readings
-                        ...litService.dailyReadings.asMap().entries.map((entry) {
-                          int idx = entry.key;
-                          var reading = entry.value;
-                          bool isLast = idx == litService.dailyReadings.length - 1;
-                          return _buildReading(
-                            reading.title,
-                            reading.citation,
-                            reading.text,
-                            context,
-                            litService.darkColor,
-                            isLast: isLast,
-                          );
-                        }),
-
-                        if (litService.hasError) ...[
-                          const SizedBox(height: 10),
-                          const Text(
-                            'Using fallback readings due to network error.',
-                            style: TextStyle(color: Colors.red, fontSize: 10, fontStyle: FontStyle.italic),
+                        Text(
+                          "Dear Parishioners, as we reflect on today's beautiful readings, I want to invite all of you to our upcoming community dinner. Let us continue to build our parish family in faith and charity. God bless you.",
+                          style: const TextStyle(
+                            fontFamily: 'Newsreader',
+                            fontSize: 16,
+                            height: 1.5,
+                            color: AppColors.ink,
                           ),
-                        ],
+                        ),
 
                         const SizedBox(height: 16),
                         Row(
                           children: [
                             Text(
-                              'Read full readings',
+                              'Read full message',
                               style: TextStyle(
                                 color: litService.primaryColor,
                                 fontSize: 12,
@@ -225,6 +212,50 @@ class HomeScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                ],
+              ),
+            ),
+
+            // Today's Schedule Card
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                border: Border.all(color: AppColors.line),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x0A203527),
+                    blurRadius: 15,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.access_time, color: litService.primaryColor, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        "TODAY's SCHEDULE",
+                        style: TextStyle(
+                          color: litService.darkColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTimeRow('8:00 AM', 'Daily Mass', litService.darkColor),
+                  const Divider(color: AppColors.line, height: 24),
+                  _buildTimeRow('3:00 PM', 'Reconciliation', litService.darkColor),
+                  const Divider(color: AppColors.line, height: 24),
+                  _buildTimeRow('5:30 PM', 'Evening Mass', litService.darkColor),
                 ],
               ),
             ),
@@ -376,54 +407,27 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildReading(String label, String reference, String quote, BuildContext context, Color primaryColorDark, {bool isLast = false}) {
-    return Container(
-      padding: const EdgeInsets.only(top: 14, bottom: 12),
-      decoration: BoxDecoration(
-        border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.line)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  color: primaryColorDark,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Text(
-                  reference,
-                  style: const TextStyle(
-                    color: AppColors.muted,
-                    fontFamily: 'Newsreader',
-                    fontSize: 13,
-                    fontStyle: FontStyle.italic,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+  Widget _buildTimeRow(String time, String event, Color darkColor) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          time,
+          style: TextStyle(
+            color: darkColor,
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
           ),
-          const SizedBox(height: 5),
-          Text(
-            quote,
-            style: const TextStyle(
-              fontFamily: 'Newsreader',
-              fontSize: 16,
-              height: 1.4,
-              color: AppColors.ink,
-            ),
+        ),
+        Text(
+          event,
+          style: const TextStyle(
+            color: AppColors.ink,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
-

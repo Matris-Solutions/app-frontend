@@ -6,9 +6,15 @@ import 'screens/parish_list_screen.dart';
 import 'screens/map_screen.dart';
 import 'screens/profile_screen.dart';
 
+import 'screens/daily_readings_screen.dart';
+
 import 'services/liturgical_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final litService = LiturgicalService();
+  await litService.fetchDashboardData();
+  
   runApp(const ParishHubApp());
 }
 
@@ -43,6 +49,7 @@ class _MainNavigatorState extends State<MainNavigator> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
+    const DailyReadingsScreen(),
     const DirectoryScreen(),
     const MapScreen(),
     const MemberProfileScreen(),
@@ -108,9 +115,10 @@ class _MainNavigatorState extends State<MainNavigator> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _buildNavItem(0, 'Home', Icons.home_outlined, Icons.home),
-                      _buildNavItem(1, 'Parishes', Icons.church_outlined, Icons.church),
-                      _buildNavItem(2, 'Map', Icons.map_outlined, Icons.map),
-                      _buildNavItem(3, 'Profile', Icons.person_outline, Icons.person),
+                      _buildNavItem(1, 'Readings', Icons.menu_book_outlined, Icons.menu_book),
+                      _buildNavItem(2, 'Parishes', Icons.church_outlined, Icons.church),
+                      _buildNavItem(3, 'Map', Icons.map_outlined, Icons.map),
+                      _buildNavItem(4, 'Profile', Icons.person_outline, Icons.person),
                     ],
                   ),
                 ),
