@@ -1,26 +1,49 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../liturgical_theme.dart';
+import '../models/parish_model.dart';
 
 class ParishDetailScreen extends StatelessWidget {
-  const ParishDetailScreen({super.key});
+  final ParishModel? parish;
+
+  const ParishDetailScreen({super.key, this.parish});
 
   @override
   Widget build(BuildContext context) {
+    final String title = parish?.name ?? "St. Patrick's";
+    final String address = parish?.formattedAddress ?? '451 Maple Avenue, Cedar Grove';
+    final String phone = (parish?.phone != null && parish!.phone!.isNotEmpty)
+        ? parish!.phone!
+        : '(555) 014-1888';
+    final String imageUrl = (parish?.imageUrl != null && parish!.imageUrl!.isNotEmpty)
+        ? parish!.imageUrl!
+        : 'https://images.unsplash.com/photo-1762967020958-6b2118ef93b3?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=85&w=1080';
+    final String subtitleLabel = (parish?.diocese != null && parish!.diocese!.isNotEmpty)
+        ? parish!.diocese!.toUpperCase()
+        : 'WELCOME HOME';
+
     return Scaffold(
       backgroundColor: AppColors.parchment,
       body: ListView(
         padding: const EdgeInsets.only(bottom: 105),
         children: [
-          // Hero
+          // Hero Image Header
           SizedBox(
-            height: MediaQuery.of(context).size.height * 0.34 < 250 ? 250 : MediaQuery.of(context).size.height * 0.34,
+            height: MediaQuery.of(context).size.height * 0.34 < 250
+                ? 250
+                : MediaQuery.of(context).size.height * 0.34,
             child: Stack(
               fit: StackFit.expand,
               children: [
                 Image.network(
-                  'https://images.unsplash.com/photo-1762967020958-6b2118ef93b3?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=85&w=1080',
+                  imageUrl,
                   fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: AppColors.greenPale,
+                    child: const Center(
+                      child: Icon(Icons.church, size: 64, color: AppColors.green),
+                    ),
+                  ),
                 ),
                 Container(
                   decoration: const BoxDecoration(
@@ -41,10 +64,14 @@ class ParishDetailScreen extends StatelessWidget {
                       width: 42,
                       height: 42,
                       decoration: const BoxDecoration(
-                        color: Color(0xEBFFFFFF), // rgba(255, 255, 255, 0.92)
+                        color: Color(0xEBFFFFFF),
                         shape: BoxShape.circle,
                         boxShadow: [
-                          BoxShadow(color: Color(0x14203527), blurRadius: 28, offset: Offset(0, 8)),
+                          BoxShadow(
+                            color: Color(0x14203527),
+                            blurRadius: 28,
+                            offset: Offset(0, 8),
+                          ),
                         ],
                       ),
                       child: const Icon(Icons.arrow_back, color: AppColors.ink),
@@ -60,10 +87,10 @@ class ParishDetailScreen extends StatelessWidget {
                       filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                        color: const Color(0xE64A7C59), // rgba(74, 124, 89, 0.9)
-                        child: const Text(
-                          'MY HOME PARISH',
-                          style: TextStyle(
+                        color: const Color(0xE64A7C59),
+                        child: Text(
+                          subtitleLabel,
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 9,
                             fontWeight: FontWeight.w700,
@@ -78,7 +105,7 @@ class ParishDetailScreen extends StatelessWidget {
             ),
           ),
 
-          // Body
+          // Body Details
           Padding(
             padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
             child: Column(
@@ -88,25 +115,31 @@ class ParishDetailScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'WELCOME HOME',
-                          style: TextStyle(
-                            color: AppColors.green,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.3,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'WELCOME HOME',
+                            style: TextStyle(
+                              color: AppColors.green,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.3,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'St. Patrick\'s',
-                          style: Theme.of(context).textTheme.displayLarge?.copyWith(fontSize: 32),
-                        ),
-                      ],
+                          const SizedBox(height: 3),
+                          Text(
+                            title,
+                            style: Theme.of(context)
+                                .textTheme
+                                .displayLarge
+                                ?.copyWith(fontSize: 28),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 10),
                     Container(
                       width: 36,
                       height: 36,
@@ -114,15 +147,27 @@ class ParishDetailScreen extends StatelessWidget {
                         color: AppColors.greenPale,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.add, color: AppColors.green, size: 20), // Cross icon placeholder
+                      child: const Icon(Icons.church, color: AppColors.green, size: 20),
                     ),
                   ],
                 ),
                 const SizedBox(height: 17),
-                _buildContactRow(Icons.location_on_outlined, '451 Maple Avenue, Cedar Grove'),
+                _buildContactRow(Icons.location_on_outlined, address),
                 const SizedBox(height: 10),
-                _buildContactRow(Icons.phone_outlined, '(555) 014-1888'),
-                
+                _buildContactRow(Icons.phone_outlined, phone),
+                if (parish?.email != null && parish!.email!.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _buildContactRow(Icons.email_outlined, parish!.email!),
+                ],
+                if (parish?.website != null && parish!.website!.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _buildContactRow(Icons.language_outlined, parish!.website!),
+                ],
+                if (parish?.parishPriestName != null && parish!.parishPriestName!.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _buildContactRow(Icons.person_outline, 'Pastor: ${parish!.parishPriestName!}'),
+                ],
+
                 const SizedBox(height: 20),
                 Row(
                   children: [
@@ -135,9 +180,39 @@ class ParishDetailScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+
+                // Activities Tags Section
+                if (parish != null && parish!.activities.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  Text('Ministries & Activities', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: parish!.activities.map((act) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.greenPale,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.green.withOpacity(0.2)),
+                        ),
+                        child: Text(
+                          act,
+                          style: const TextStyle(
+                            color: AppColors.greenDark,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+
                 const SizedBox(height: 20),
 
-                // Schedule Card
+                // Worship Schedule Card
                 Container(
                   padding: const EdgeInsets.all(19),
                   decoration: BoxDecoration(
@@ -145,7 +220,11 @@ class ParishDetailScreen extends StatelessWidget {
                     border: Border.all(color: AppColors.line),
                     borderRadius: BorderRadius.circular(19),
                     boxShadow: const [
-                      BoxShadow(color: Color(0x14203527), blurRadius: 28, offset: Offset(0, 8)),
+                      BoxShadow(
+                        color: Color(0x14203527),
+                        blurRadius: 28,
+                        offset: Offset(0, 8),
+                      ),
                     ],
                   ),
                   child: Column(
@@ -159,15 +238,26 @@ class ParishDetailScreen extends StatelessWidget {
                           Container(
                             width: 38,
                             height: 38,
-                            decoration: BoxDecoration(color: AppColors.greenPale, borderRadius: BorderRadius.circular(12)),
-                            child: const Icon(Icons.add, color: AppColors.green, size: 19),
+                            decoration: BoxDecoration(
+                              color: AppColors.greenPale,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.church, color: AppColors.green, size: 19),
                           ),
                           const SizedBox(width: 13),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Sunday Mass', style: TextStyle(fontFamily: 'Newsreader', fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.ink)),
+                                const Text(
+                                  'Sunday Mass',
+                                  style: TextStyle(
+                                    fontFamily: 'Newsreader',
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.ink,
+                                  ),
+                                ),
                                 const SizedBox(height: 5),
                                 _buildScheduleLine('Sunday', '9:00 AM · 11:00 AM'),
                                 const SizedBox(height: 5),
@@ -189,7 +279,10 @@ class ParishDetailScreen extends StatelessWidget {
                           Container(
                             width: 38,
                             height: 38,
-                            decoration: BoxDecoration(color: AppColors.goldPale, borderRadius: BorderRadius.circular(12)),
+                            decoration: BoxDecoration(
+                              color: AppColors.goldPale,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             child: const Icon(Icons.access_time, color: Color(0xFF8D6B2F), size: 18),
                           ),
                           const SizedBox(width: 13),
@@ -197,11 +290,22 @@ class ParishDetailScreen extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Reconciliation', style: TextStyle(fontFamily: 'Newsreader', fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.ink)),
+                                const Text(
+                                  'Reconciliation',
+                                  style: TextStyle(
+                                    fontFamily: 'Newsreader',
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.ink,
+                                  ),
+                                ),
                                 const SizedBox(height: 5),
                                 _buildScheduleLine('Saturday', '3:30–4:45 PM'),
                                 const SizedBox(height: 5),
-                                const Text('Or by appointment', style: TextStyle(color: AppColors.muted, fontSize: 11)),
+                                const Text(
+                                  'Or by appointment',
+                                  style: TextStyle(color: AppColors.muted, fontSize: 11),
+                                ),
                               ],
                             ),
                           ),
@@ -222,8 +326,19 @@ class ParishDetailScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                _buildNewsCard('JUN', '22', 'Parish Feast Day Picnic', 'Join us after the 11:00 AM Mass for food, fellowship, and family activities.'),
-                _buildNewsCard('JUN', '26', 'Evening of Adoration', 'Quiet prayer and Eucharistic adoration from 7:00–8:00 PM.', isLast: true),
+                _buildNewsCard(
+                  'JUN',
+                  '22',
+                  'Parish Feast Day Picnic',
+                  'Join us after the 11:00 AM Mass for food, fellowship, and family activities.',
+                ),
+                _buildNewsCard(
+                  'JUN',
+                  '26',
+                  'Evening of Adoration',
+                  'Quiet prayer and Eucharistic adoration from 7:00–8:00 PM.',
+                  isLast: true,
+                ),
               ],
             ),
           ),
@@ -237,7 +352,9 @@ class ParishDetailScreen extends StatelessWidget {
       children: [
         Icon(icon, size: 18, color: AppColors.green),
         const SizedBox(width: 9),
-        Text(text, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+        Expanded(
+          child: Text(text, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+        ),
       ],
     );
   }
@@ -300,7 +417,15 @@ class ParishDetailScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(month, style: const TextStyle(color: AppColors.green, fontSize: 8, fontWeight: FontWeight.w700)),
-                Text(day, style: const TextStyle(color: AppColors.green, fontFamily: 'Newsreader', fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  day,
+                  style: const TextStyle(
+                    color: AppColors.green,
+                    fontFamily: 'Newsreader',
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           ),
@@ -309,7 +434,15 @@ class ParishDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontFamily: 'Newsreader', fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.ink)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontFamily: 'Newsreader',
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.ink,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(body, style: const TextStyle(color: AppColors.muted, fontSize: 10, height: 1.45)),
               ],

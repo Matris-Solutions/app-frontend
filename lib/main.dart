@@ -5,6 +5,7 @@ import 'screens/home_screen.dart';
 import 'screens/parish_list_screen.dart';
 import 'screens/map_screen.dart';
 import 'screens/profile_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/daily_readings_screen.dart';
 
@@ -12,6 +13,11 @@ import 'services/liturgical_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://wrpqjclzljawjelybtxq.supabase.co',
+    anonKey: 'sb_publishable_dzsj1dBP9dKnlFlZGnZ9BA_YP_ef5TG',
+  );
   final litService = LiturgicalService();
   await litService.fetchDashboardData();
   
