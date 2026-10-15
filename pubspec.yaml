@@ -40,6 +40,8 @@ dependencies:
   latlong2: ^0.10.1
   xml: ^7.1.0
   supabase_flutter: ^2.18.3
+  supabase: ^2.16.5
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:

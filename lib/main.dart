@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/daily_readings_screen.dart';
 
 import 'services/liturgical_service.dart';
+import 'services/catholic_news_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +21,7 @@ void main() async {
   );
   final litService = LiturgicalService();
   await litService.fetchDashboardData();
+  CatholicNewsService().fetchCatholicNews();
   
   runApp(const ParishHubApp());
 }

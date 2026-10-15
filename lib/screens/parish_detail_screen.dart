@@ -2,6 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../liturgical_theme.dart';
 import '../models/parish_model.dart';
+import '../models/mass_time_model.dart';
+import '../services/parish_service.dart';
+import '../services/auth_service.dart';
+import 'auth_screen.dart';
 
 class ParishDetailScreen extends StatelessWidget {
   final ParishModel? parish;
@@ -10,11 +14,9 @@ class ParishDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String title = parish?.name ?? "St. Patrick's";
-    final String address = parish?.formattedAddress ?? '451 Maple Avenue, Cedar Grove';
-    final String phone = (parish?.phone != null && parish!.phone!.isNotEmpty)
-        ? parish!.phone!
-        : '(555) 014-1888';
+    final String title = parish?.name ?? "Unknown Parish";
+    final String address = parish?.formattedAddress ?? 'No address provided';
+    final String? phone = parish?.phone;
     final String imageUrl = (parish?.imageUrl != null && parish!.imageUrl!.isNotEmpty)
         ? parish!.imageUrl!
         : 'https://images.unsplash.com/photo-1762967020958-6b2118ef93b3?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&q=85&w=1080';
@@ -153,8 +155,10 @@ class ParishDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 17),
                 _buildContactRow(Icons.location_on_outlined, address),
-                const SizedBox(height: 10),
-                _buildContactRow(Icons.phone_outlined, phone),
+                if (phone != null && phone.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _buildContactRow(Icons.phone_outlined, phone),
+                ],
                 if (parish?.email != null && parish!.email!.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   _buildContactRow(Icons.email_outlined, parish!.email!),
@@ -168,7 +172,12 @@ class ParishDetailScreen extends StatelessWidget {
                   _buildContactRow(Icons.person_outline, 'Pastor: ${parish!.parishPriestName!}'),
                 ],
 
-                const SizedBox(height: 20),
+                if (parish != null) ...[
+                  const SizedBox(height: 16),
+                  _buildHomeParishButton(context, parish!),
+                ],
+
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
@@ -213,116 +222,202 @@ class ParishDetailScreen extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 // Worship Schedule Card
-                Container(
-                  padding: const EdgeInsets.all(19),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: AppColors.line),
-                    borderRadius: BorderRadius.circular(19),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x14203527),
-                        blurRadius: 28,
-                        offset: Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Worship schedule', style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 17),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: AppColors.greenPale,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(Icons.church, color: AppColors.green, size: 19),
+                if (parish != null)
+                  FutureBuilder<List<MassTimeModel>>(
+                    future: ParishService().getMassTimesForParish(parish!.id),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(color: AppColors.green),
+                        );
+                      }
+                      
+                      if (snapshot.hasError) {
+                        return const Text(
+                          'Unable to load mass times.',
+                          style: TextStyle(color: Colors.red),
+                        );
+                      }
+                      
+                      final massTimes = snapshot.data ?? [];
+                      if (massTimes.isEmpty) {
+                        return Container(
+                          padding: const EdgeInsets.all(19),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: AppColors.line),
+                            borderRadius: BorderRadius.circular(19),
                           ),
-                          const SizedBox(width: 13),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          child: const Row(
+                            children: [
+                              Icon(Icons.access_time, color: AppColors.green, size: 20),
+                              SizedBox(width: 10),
+                              Text(
+                                'No Mass times listed for this parish yet.',
+                                style: TextStyle(color: AppColors.muted, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      // Group by displayType
+                      Map<String, List<MassTimeModel>> groupedTimes = {};
+                      for (var mt in massTimes) {
+                        groupedTimes.putIfAbsent(mt.displayType, () => []).add(mt);
+                      }
+
+                      return Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: AppColors.line),
+                          borderRadius: BorderRadius.circular(22),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x14203527),
+                              blurRadius: 28,
+                              offset: Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
                               children: [
-                                const Text(
-                                  'Sunday Mass',
+                                Icon(Icons.church, color: AppColors.green, size: 18),
+                                SizedBox(width: 10),
+                                Text(
+                                  'WORSHIP SCHEDULE',
                                   style: TextStyle(
-                                    fontFamily: 'Newsreader',
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.ink,
+                                    color: AppColors.greenDark,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.2,
                                   ),
-                                ),
-                                const SizedBox(height: 5),
-                                _buildScheduleLine('Sunday', '9:00 AM · 11:00 AM'),
-                                const SizedBox(height: 5),
-                                _buildScheduleLine('Saturday Vigil', '5:30 PM'),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        height: 1,
-                        margin: const EdgeInsets.only(top: 15, left: 51),
-                        color: AppColors.line,
-                      ),
-                      const SizedBox(height: 17),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: AppColors.goldPale,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(Icons.access_time, color: Color(0xFF8D6B2F), size: 18),
-                          ),
-                          const SizedBox(width: 13),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Reconciliation',
-                                  style: TextStyle(
-                                    fontFamily: 'Newsreader',
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.ink,
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
-                                _buildScheduleLine('Saturday', '3:30–4:45 PM'),
-                                const SizedBox(height: 5),
-                                const Text(
-                                  'Or by appointment',
-                                  style: TextStyle(color: AppColors.muted, fontSize: 11),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                            const SizedBox(height: 18),
+
+                            ...groupedTimes.entries.map((entry) {
+                              final categoryName = entry.key;
+                              final categoryTimes = entry.value;
+
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 14),
+                                child: Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.parchment,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: AppColors.line),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: categoryName == 'Sunday' ? AppColors.green : AppColors.gold,
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Text(
+                                              categoryName.toUpperCase(),
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 0.8,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      ...categoryTimes.map((mt) {
+                                        return Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 6),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  const Icon(Icons.access_time_filled, size: 14, color: AppColors.green),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    mt.timeOnlyFormatted,
+                                                    style: const TextStyle(
+                                                      color: AppColors.greenDark,
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  Text(
+                                                    mt.dayName,
+                                                    style: const TextStyle(
+                                                      color: AppColors.ink,
+                                                      fontWeight: FontWeight.w600,
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                                  if (mt.language.isNotEmpty && mt.language != 'English') ...[
+                                                    const Spacer(),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: AppColors.goldPale,
+                                                        borderRadius: BorderRadius.circular(4),
+                                                      ),
+                                                      child: Text(
+                                                        mt.language,
+                                                        style: const TextStyle(color: Color(0xFF8C7144), fontSize: 9, fontWeight: FontWeight.bold),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                              if (mt.notes != null && mt.notes!.isNotEmpty) ...[
+                                                const SizedBox(height: 3),
+                                                Padding(
+                                                  padding: const EdgeInsets.only(left: 22),
+                                                  child: Text(
+                                                    mt.notes!,
+                                                    style: const TextStyle(
+                                                      color: AppColors.muted,
+                                                      fontSize: 12,
+                                                      height: 1.3,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        );
+                                      }),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-                ),
 
                 // News Section
                 Padding(
                   padding: const EdgeInsets.only(top: 26, bottom: 13, left: 1, right: 1),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Recent News', style: Theme.of(context).textTheme.titleMedium),
-                      const Text('All news', style: TextStyle(color: AppColors.green, fontSize: 12, fontWeight: FontWeight.w700)),
+                    children: const [
+                      Text('Recent News', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.ink)),
+                      Text('All news', style: TextStyle(color: AppColors.green, fontSize: 12, fontWeight: FontWeight.w700)),
                     ],
                   ),
                 ),
@@ -344,6 +439,80 @@ class ParishDetailScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildHomeParishButton(BuildContext context, ParishModel parish) {
+    final authService = AuthService();
+    return ListenableBuilder(
+      listenable: authService,
+      builder: (context, _) {
+        final isHome = authService.currentProfile?.assignedParishId == parish.id;
+        final isAuthenticated = authService.isAuthenticated;
+
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              if (!isAuthenticated) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AuthScreen()),
+                );
+                return;
+              }
+
+              try {
+                await authService.updateHomeParish(parish.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(isHome
+                          ? '${parish.name} is set as your home parish!'
+                          : 'Set ${parish.name} as your home parish!'),
+                      backgroundColor: AppColors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error updating home parish: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            icon: Icon(
+              isHome ? Icons.home : Icons.home_outlined,
+              color: isHome ? Colors.white : AppColors.green,
+              size: 18,
+            ),
+            label: Text(
+              isHome ? 'YOUR HOME PARISH' : 'SET AS MY HOME PARISH',
+              style: TextStyle(
+                color: isHome ? Colors.white : AppColors.green,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isHome ? AppColors.green : AppColors.greenPale,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(
+                  color: isHome ? AppColors.green : AppColors.green.withValues(alpha: 0.3),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -380,18 +549,6 @@ class ParishDetailScreen extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScheduleLine(String day, String time) {
-    return RichText(
-      text: TextSpan(
-        style: const TextStyle(color: AppColors.muted, fontSize: 11, fontFamily: 'DM Sans'),
-        children: [
-          TextSpan(text: '$day ', style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.ink)),
-          TextSpan(text: time),
         ],
       ),
     );
